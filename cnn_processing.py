@@ -271,15 +271,6 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
     # load the model:
     model = load_model(model_dir + model_name + '.hdf5')
 
-    # assume first layers for any model learned significant and general image characteristics,
-    # therefore we won't change them:
-    for layer in model.layers[:10]:
-        layer.trainable = False
-
-    # everything else should be trained:
-    for layer in model.layers[11:]:
-        layer.trainable = True
-
     # compile the model with a SGD/momentum optimizer
     # and a very slow learning rate.
     model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
@@ -329,8 +320,11 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
     print('')
 
     # sometimes fine tune might not improve validation accuracy, verify:
-    model = load_model(model_dir + model_name + '.hdf5')
-    score_or = model.evaluate_generator(generator=generator_val, steps=generator_val.n, verbose=0)
+    initial_model = load_model(model_dir + model_name + '.hdf5')
+    initial_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
+                          loss='categorical_crossentropy',
+                          metrics=['accuracy'])
+    score_or = initial_model.evaluate_generator(generator=generator_val, steps=generator_val.n, verbose=0)
     print('{:22} {:.2f}'.format('Original Validation loss:', score_or[0]))
     print('{:22} {:.2f}'.format('Original Validation accuracy:', score_or[1]))
     print('')
@@ -371,76 +365,6 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
 
     print('Fine tune complete.')
 
-
-def label_one(path_img, path_model):
-    """Labels (classifies) a single image based on a retrained CNN model.
-      Args:
-        path_img: String path to a single image.
-        path_model: String path to the model to be used for classification.
-      Returns:
-        No returns. Performs the classification and opens a tkinter window with the image and probabilities assigned.
-      """
-    # load the model:
-    model = load_model(path_model)
-
-    # get model input parameters:
-    img_height = model.layers[0].get_output_at(0).get_shape().as_list()[1]
-    img_width = model.layers[0].get_output_at(0).get_shape().as_list()[2]
-
-    # load the image
-    img = image.load_img(path_img, target_size=(img_height, img_width))
-
-    # save as array and rescale
-    x = image.img_to_array(img) * 1. / 255
-
-    # predict the value
-    pred = model.predict(x.reshape(1, img_height, img_width, 3))
-    return pred
-
-
-def label_folder(path_folder, path_model):
-    """Labels (classifies) a folder containing subfloders based on a retrained CNN model.
-      Args:
-        path_folder: String path to a folder containing subfolders of images.
-        path_model: String path to the model to be used for classification.
-      Returns:
-        List: a numpy array with predictions (pred) and the file names of the images classified (generator.filenames)
-      """
-    # load the model:
-    model = load_model(path_model)
-
-    # get model input parameters:
-    img_height = model.layers[0].get_output_at(0).get_shape().as_list()[1]
-    img_width = model.layers[0].get_output_at(0).get_shape().as_list()[2]
-
-    datagen = ImageDataGenerator(rescale=1. / 255)
-
-    # try flow from directory:
-    generator = datagen.flow_from_directory(
-        path_folder,
-        target_size=(img_width, img_height),
-        batch_size=1,
-        class_mode='categorical',
-        shuffle=False)
-
-    generator = datagen.flow_from_directory(
-        path_folder,
-        target_size=(img_width, img_height),
-        batch_size=1,
-        class_mode=None,
-        shuffle=False)
-
-    if len(generator) > 0:
-        # if data file is structured as path_folder/classes, we can use the generator:
-        pred = model.predict_generator(generator, steps=len(generator), verbose=1)
-    else:
-        # the path_folder contains all the images to be classified
-        # TODO: if problems arise
-        pass
-
-    return [pred, generator.filenames]
-
-
 if __name__ == '__main__':
     print("Starting...")
 
@@ -468,10 +392,8 @@ if __name__ == '__main__':
     models_list = ['MobileNetV2', 'VGG19',
                    'InceptionV3', 'ResNet50']
 
-    models_list = ['MobileNetV2']
-
     # number of epochs for training:
-    epochs = 1
+    epochs = 5
 
     # optimizer
     opt = 'SGD'
@@ -487,15 +409,16 @@ if __name__ == '__main__':
         width = options_dict[m][1]
         # calling the functions:
         # save the bottlenecks
-        save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
+        #save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
         # then train the top model
-        train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
+        #train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
         # fine tune the model:
-        fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs, batch_size=32)
+        #fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs, batch_size=4)
 
     # after the models are trained, evaluate the metrics:
     datagen = ImageDataGenerator(rescale=1. / 255)
 
+    print('\n\n')
     for m in models_list:
         print('Evaluating model {}'.format(m))
         # image height and width ("picture size for the model"):
@@ -511,7 +434,11 @@ if __name__ == '__main__':
 
         # load the model
         this_model = load_model(model_dir + m + '.hdf5')
+        this_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
+                              loss='categorical_crossentropy',
+                              metrics=['accuracy'])
 
+        print('----Classification only')
         score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
         print('----{:22} {:.2f}'.format('Validation loss:', score[0]))
         print('----{:22} {:.2f}'.format('Validation accuracy:', score[1]))
@@ -520,6 +447,7 @@ if __name__ == '__main__':
         # load the fine tuned model
         this_model = load_model(model_dir + m + 'fine_tuned.hdf5')
 
+        print('----Fine tune')
         score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
         print('----{:22} {:.2f}'.format('Validation loss:', score[0]))
         print('----{:22} {:.2f}'.format('Validation accuracy:', score[1]))
