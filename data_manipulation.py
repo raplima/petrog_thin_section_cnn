@@ -306,7 +306,7 @@ if __name__ == '__main__':
 
     # separate training, validation, test data
     path_in = '../Data/PP_mc_wb'
-    train_val_test(path_in, val_p=0.07, test_p=0.07)
+    train_val_test(path_in, val_p=0.075, test_p=0.075)
 
     # move the crops from the same original image to validation and test folders
     path_search = '../Data/PP_mc_wb_train'
