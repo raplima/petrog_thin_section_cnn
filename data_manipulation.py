@@ -300,7 +300,7 @@ if __name__ == '__main__':
                     'Bioturbated_siltstone',
                     'Massive_calcareous_siltstone',
                     'Massive_calcite-cemented_siltstone',
-                    'Porous_calcareous_sitlstone']
+                    'Porous_calcareous_siltstone']
 
     wbalance(path_in, path_out, list_folders)
 
@@ -316,6 +316,9 @@ if __name__ == '__main__':
     path_in = '../Data/PP_mc_wb_test'
     same_original(path_in, path_search)
 
+    path_search = '../Data/PP_mc_wb_validation'
+    same_original(path_in, path_search)
+
     # use image augmentation for training
     path_in = '../Data/PP_mc_wb_train'
     image_augment(path_in)
@@ -326,7 +329,7 @@ if __name__ == '__main__':
                     'Bioturbated_siltstone',
                     'Massive_calcareous_siltstone',
                     'Massive_calcite-cemented_siltstone',
-                    'Porous_calcareous_sitlstone']
+                    'Porous_calcareous_siltstone']
 
     list_roots = ['../Data/PP_mc_wb_train',
                   '../Data/PP_mc_wb_validation',
