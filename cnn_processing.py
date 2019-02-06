@@ -27,7 +27,7 @@ from matplotlib import style
 matplotlib.use('TkAgg')
 style.use("seaborn")
 
-verb = 1  # verbose when training
+verb = 0  # verbose when training
 
 # folders management:
 bottleneck_dir = os.getcwd() + os.sep + 'runs' + os.sep + 'bnecks' + os.sep
@@ -335,7 +335,7 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
         # http://blog.datumbox.com/the-batch-normalization-layer-of-keras-is-broken/
         # https://www.youtube.com/watch?v=nUUqwaxLnWs
 
-    model.save(model_dir + model_name + 'fine_tuned.hdf5')
+    model.save(model_dir + model_name + '_fine_tuned.hdf5')
     # also save the dictionary label associated with this model for later testing
     shutil.copy2(model_dir + os.sep + model_name + '_dict_l', model_dir + model_name + '_fine_tuned_dict_l')
     # delete temporary model file:
@@ -365,6 +365,7 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
 
     print('Fine tune complete.')
 
+
 if __name__ == '__main__':
     print("Starting...")
 
@@ -393,7 +394,7 @@ if __name__ == '__main__':
                    'InceptionV3', 'ResNet50']
 
     # number of epochs for training:
-    epochs = 5
+    epochs = 50
 
     # optimizer
     opt = 'SGD'
@@ -413,7 +414,12 @@ if __name__ == '__main__':
         # then train the top model
         train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
         # fine tune the model:
-        fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs, batch_size=8)
+        if m == 'InceptionV3' or m == 'ResNet50':
+            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
+                                  batch_size=8)  # 8 for inception/resnet (personal memory limitations)
+        else:
+            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
+                                  batch_size=16)
 
     # after the models are trained, evaluate the metrics:
     datagen = ImageDataGenerator(rescale=1. / 255)
@@ -435,8 +441,8 @@ if __name__ == '__main__':
         # load the model
         this_model = load_model(model_dir + m + '.hdf5')
         this_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
-                              loss='categorical_crossentropy',
-                              metrics=['accuracy'])
+                           loss='categorical_crossentropy',
+                           metrics=['accuracy'])
 
         print('----Classification only')
         score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
