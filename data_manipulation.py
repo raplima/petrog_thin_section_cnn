@@ -15,7 +15,7 @@ import simple_cb as cb
 
 def multi_crop(path_in, path_out, input_shape=(1292, 968), target_shape=(644, 644), bottom_right=False):
     """
-    Function makes a three crop (top left, top center, top right, bottom left, bottom center)
+    Function makes a multi crop (top left, top center, top right, bottom left, bottom center, bottom right)
     and saves images in path_out.
     We discard bottom right as it might contain the scale and we do not want to add that to the training data.
     :param path_in: string, path to folder containing subfolders with images
