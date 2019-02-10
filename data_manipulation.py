@@ -106,7 +106,7 @@ def wbalance(path_in, path_out, list_folders):
         os.mkdir(path_out + os.sep + folder)
         lst = os.listdir(path_in + os.sep + folder)
 
-        images = [item for item in lst if item.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        images = [item for item in lst if item.lower().endswith(('.png', '.jpg', '.jpeg', '.tif'))]
 
         for file in images:
             # open image
