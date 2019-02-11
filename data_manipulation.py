@@ -13,7 +13,8 @@ import cv2
 import simple_cb as cb
 
 
-def multi_crop(path_in, path_out, input_shape=(1292, 968), target_shape=(644, 644), bottom_right=False):
+def multi_crop(path_in, path_out, input_shape=(1292, 968), target_shape=(644, 644), bottom_right=False,
+               random_crop=0):
     """
     Function makes a multi crop (top left, top center, top right, bottom left, bottom center, bottom right)
     and saves images in path_out.
@@ -22,6 +23,7 @@ def multi_crop(path_in, path_out, input_shape=(1292, 968), target_shape=(644, 64
     :param path_out: string, path to folder to save the images
     :param target_shape: image shape
     :param bottom_right: create/keep bottom right crop (not using for training as it might contain scale)
+    :param random_crop: create randomly centered crops (to hopefully reduce the number of "ties")
     :return:
     """
 
@@ -39,29 +41,27 @@ def multi_crop(path_in, path_out, input_shape=(1292, 968), target_shape=(644, 64
 
     # create dictionary to be used in cropping loop:
     # values define the cropping position
+    new_imgs = {'tl': (0, 0, target_shape[0], target_shape[1]),
+                'tc': (x_c - np.int(target_shape[0] / 2.), 0,
+                       x_c + np.int(target_shape[0] / 2.), target_shape[1]),
+                'tr': (input_shape[0] - target_shape[0], 0,
+                       input_shape[0], target_shape[1]),
+                'bl': (0, input_shape[1] - target_shape[1],
+                       target_shape[0], input_shape[1]),
+                'bc': (x_c - np.int(target_shape[0] / 2.), input_shape[1] - target_shape[1],
+                       x_c + np.int(target_shape[0] / 2.), input_shape[1])}
+
     if bottom_right:
         # if user wants to keep bottom right crop, we add it to the dictionary
-        new_imgs = {'tl': (0, 0, target_shape[0], target_shape[1]),
-                    'tc': (x_c - np.int(target_shape[0] / 2.), 0,
-                           x_c + np.int(target_shape[0] / 2.), target_shape[1]),
-                    'tr': (input_shape[0] - target_shape[0], 0,
-                           input_shape[0], target_shape[1]),
-                    'bl': (0, input_shape[1] - target_shape[1],
-                           target_shape[0], input_shape[1]),
-                    'bc': (x_c - np.int(target_shape[0] / 2.), input_shape[1] - target_shape[1],
-                           x_c + np.int(target_shape[0] / 2.), input_shape[1]),
-                    'br': (input_shape[0] - target_shape[0], input_shape[1] - target_shape[1],
-                           input_shape[0], input_shape[1])}
-    else:
-        new_imgs = {'tl': (0, 0, target_shape[0], target_shape[1]),
-                    'tc': (x_c - np.int(target_shape[0] / 2.), 0,
-                           x_c + np.int(target_shape[0] / 2.), target_shape[1]),
-                    'tr': (input_shape[0] - target_shape[0], 0,
-                           input_shape[0], target_shape[1]),
-                    'bl': (0, input_shape[1] - target_shape[1],
-                           target_shape[0], input_shape[1]),
-                    'bc': (x_c - np.int(target_shape[0] / 2.), input_shape[1] - target_shape[1],
-                           x_c + np.int(target_shape[0] / 2.), input_shape[1])}
+        new_imgs['br'] = (input_shape[0] - target_shape[0], input_shape[1] - target_shape[1],
+                          input_shape[0], input_shape[1])
+    for i in range(0, random_crop):
+        # if user wants extra randomly centered crops
+        # starting point can range from 0 to size of the image - target size
+        xi = np.random.randint(0, input_shape[0] - target_shape[0])
+        yi = np.random.randint(0, input_shape[1] - target_shape[1])
+        new_imgs['r{}'.format(i)] = (xi, yi,
+                                     xi + target_shape[0], yi + target_shape[1])
 
     # uses the path_in and walks in folders to crop images
     for folder in folders:
