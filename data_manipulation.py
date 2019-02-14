@@ -202,11 +202,9 @@ def train_val_test(path, val_p=0.1, test_p=0.1):
 
             for t in range(n_test, n_test + n_valid):
                 shutil.copy2(path + os.sep + this_folder + os.sep + lst[t], path_valid + os.sep + this_folder)
-                # print("copied " + lst[t] + " to validation folder");
 
             for t in range(n_test + n_valid, len(lst)):
                 shutil.copy2(path + os.sep + this_folder + os.sep + lst[t], path_train + os.sep + this_folder)
-                # print("copied " + lst[t] + " to train folder");
 
     print('Split data complete\n')
 
@@ -307,6 +305,11 @@ if __name__ == '__main__':
     # separate training, validation, test data
     path_in = '../Data/PP_mc_wb'
     train_val_test(path_in, val_p=0.075, test_p=0.075)
+
+    # we won't be using Ambiguous
+    shutil.rmtree('../Data/PP_mc_wb_train/Ambiguous', ignore_errors=True)
+    shutil.rmtree('../Data/PP_mc_wb_validation/Ambiguous', ignore_errors=True)
+    shutil.rmtree('../Data/PP_mc_wb_test/Ambiguous', ignore_errors=True)
 
     # move the crops from the same original image to validation and test folders
     path_search = '../Data/PP_mc_wb_train'
