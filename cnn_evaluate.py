@@ -8,14 +8,14 @@
 import os
 import pickle
 
-import matplotlib.image as mpimg
 import pandas as pd
 from keras.models import load_model
-from keras.preprocessing import image
 from keras.preprocessing.image import ImageDataGenerator
 from matplotlib import pyplot as plt
 from matplotlib import style
 from sklearn.metrics import accuracy_score
+
+from cnn_processing import model_preprocess
 
 def label_folder(path_folder, path_model):
     """Labels (classifies) a folder containing subfloders based on a retrained CNN model.
@@ -27,12 +27,16 @@ def label_folder(path_folder, path_model):
       """
     # load the model:
     model = load_model(path_model)
+    model_name = os.path.splitext(os.path.basename(path_model))[0]
+    model_name = model_name.split('_')[0]
 
     # get model input parameters:
     img_height = model.layers[0].get_output_at(0).get_shape().as_list()[1]
     img_width = model.layers[0].get_output_at(0).get_shape().as_list()[2]
 
-    datagen = ImageDataGenerator(rescale=1. / 255)
+    #datagen = ImageDataGenerator(preprocessing_function=model_preprocess(model_name))
+    datagen = ImageDataGenerator(rescale=1/255.)
+    
 
     # flow from directory:
     generator = datagen.flow_from_directory(
@@ -134,14 +138,14 @@ if __name__ == '__main__':
         df['filename'] = new_col[1]
 
         # save the predicted label (the argmax)
-        df['PredLabel'] = df[['Argillaceous_siltstone',
+        df['PredLabel'] = df[['Argilaceous_siltstone',
                               'Bioturbated_siltstone',
                               'Massive_calcareous_siltstone',
                               'Massive_calcite-cemented_siltstone',
                               'Porous_calcareous_siltstone']].idxmax(axis=1)
 
         # save the highest probability assigned:
-        df['MaxPred'] = df[['Argillaceous_siltstone',
+        df['MaxPred'] = df[['Argilaceous_siltstone',
                             'Bioturbated_siltstone',
                             'Massive_calcareous_siltstone',
                             'Massive_calcite-cemented_siltstone',

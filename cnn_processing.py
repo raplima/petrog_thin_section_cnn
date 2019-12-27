@@ -5,33 +5,65 @@
 
 import os
 import pickle
-import random
 import shutil
 
 import matplotlib
-import matplotlib.image as mpimg
 import numpy as np
 from keras import applications, Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
-from keras.layers import Dropout, Flatten, Dense, Input, GlobalAveragePooling2D
+from keras.layers import Dropout, Flatten, Dense, Input
 from keras.models import Sequential
 from keras.models import load_model
 from keras.optimizers import SGD
-from keras.preprocessing import image
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import TensorBoard
+from keras import backend as K 
 import datetime
 from matplotlib import pyplot as plt
 from matplotlib import style
 
+from timeit import default_timer as timer
+
 matplotlib.use('TkAgg')
 style.use("seaborn")
 
-verb = 1  # verbose when training
+verb = 0  # verbose when training
 
 # folders management:
-bottleneck_dir = os.getcwd() + os.sep + 'runs' + os.sep + 'bnecks' + os.sep
-model_dir = os.getcwd() + os.sep + 'runs' + os.sep + 'models' + os.sep
+bottleneck_dir = os.path.join(os.getcwd(),'runs', 'bnecks')
+model_dir = os.path.join(os.getcwd(),'runs', 'models')
+
+def model_preprocess(model_name):
+    """Loads the appropriate CNN preprocess
+      Args:
+        arch: String key for model to be loaded.
+      Returns:
+        The specified Keras preprocessing.
+      """
+    # function that loads the appropriate model
+    if model_name == 'Xception':
+        return applications.xception.preprocess_input
+    elif model_name == 'VGG16':
+        return applications.vgg16.preprocess_input
+    elif model_name == 'VGG19':
+        return applications.vgg19.preprocess_input
+    elif model_name == 'ResNet50':
+        return applications.resnet50.preprocess_input
+    elif model_name == 'InceptionV3':
+        return applications.inception_v3.preprocess_input
+    elif model_name == 'InceptionResNetV2':
+        return applications.inception_resnet_v2.preprocess_input
+    elif model_name == 'MobileNet':
+        return applications.mobilenet.preprocess_input
+    elif model_name == 'DenseNet121':
+        return applications.densenet.preprocess_input
+    elif model_name == 'NASNetLarge':
+        return applications.nasnet.preprocess_input
+    elif model_name == 'MobileNetV2':
+        return applications.mobilenet_v2.preprocess_input
+    else:
+        print('Invalid model selected')
+        return False
 
 
 def model_app(arch, input_tensor):
@@ -82,7 +114,7 @@ def model_app(arch, input_tensor):
     return model
 
 
-def save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, img_height, img_width, arch,
+def save_bottleneck_features(model_name, train_data_dir, validation_data_dir, bottleneck_name, img_height, img_width, arch,
                              batch_size=1):
     """Saves the bottlenecks of validation and train data.
       Args:
@@ -102,7 +134,8 @@ def save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_nam
     # bottleneck_dir is defined outside of this function
     # arch is the architecture to be used
     global bottleneck_dir
-    datagen = ImageDataGenerator(rescale=1. / 255)
+    #datagen = ImageDataGenerator(preprocessing_function=model_preprocess(model_name))
+    datagen = ImageDataGenerator(rescale=1./255)
 
     # check to see if runs/bottleneck path exists
     if not os.path.exists(bottleneck_dir):
@@ -122,9 +155,9 @@ def save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_nam
         generator, generator.n // batch_size, verbose=verb)
 
     # save a tuple of bottlenecks and the corresponding label
-    np.save(open(bottleneck_dir + bottleneck_name + '_train.npy', 'wb'),
+    np.save(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_train.npy'), 'wb'),
             bottleneck_features_train)
-    np.save(open(bottleneck_dir + bottleneck_name + '_train_labels.npy', 'wb'),
+    np.save(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_train_labels.npy'), 'wb'),
             generator.classes[0:bottleneck_features_train.shape[0]])
 
     generator = datagen.flow_from_directory(
@@ -138,14 +171,14 @@ def save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_nam
         generator, generator.n // batch_size, verbose=0)
 
     # save a tuple of bottlenecks and the corresponding label
-    np.save(open(bottleneck_dir + bottleneck_name + '_val.npy', 'wb'),
+    np.save(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_val.npy'), 'wb'),
             bottleneck_features_validation)
 
-    np.save(open(bottleneck_dir + bottleneck_name + '_val_labels.npy', 'wb'),
+    np.save(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_val_labels.npy'), 'wb'),
             generator.classes[0:bottleneck_features_validation.shape[0]])
 
     # finally, save a "dictionary" as the labels are numeric and eventually we want to know the original string label:
-    with open(bottleneck_dir + bottleneck_name + '_dict_l', 'wb') as fp:
+    with open(os.path.join(bottleneck_dir, f'{bottleneck_name}_dict_l'), 'wb') as fp:
         pickle.dump(sorted(os.listdir(train_data_dir)), fp)
 
 
@@ -164,11 +197,11 @@ def train_top_model(bottleneck_name, model_name, arch, img_height, img_width, ep
         No returns. Trains and saves the model. Opens a tkinter window with training history
       """
 
-    train_data = np.load(open(bottleneck_dir + bottleneck_name + '_train.npy', 'rb'))
-    train_labels = np.load(open(bottleneck_dir + bottleneck_name + '_train_labels.npy', 'rb')).reshape(-1)
+    train_data = np.load(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_train.npy'), 'rb'))
+    train_labels = np.load(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_train_labels.npy'), 'rb')).reshape(-1)
 
-    validation_data = np.load(open(bottleneck_dir + bottleneck_name + '_val.npy', 'rb'))
-    validation_labels = np.load(open(bottleneck_dir + bottleneck_name + '_val_labels.npy', 'rb')).reshape(-1)
+    validation_data = np.load(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_val.npy'), 'rb'))
+    validation_labels = np.load(open(os.path.join(bottleneck_dir, f'{bottleneck_name}_val_labels.npy'), 'rb')).reshape(-1)
 
     # check to see if runs/model path exists
     if not os.path.exists(model_dir):
@@ -184,12 +217,12 @@ def train_top_model(bottleneck_name, model_name, arch, img_height, img_width, ep
                           loss='sparse_categorical_crossentropy',
                           metrics=['accuracy'])
     if opt == 'SGD':
-        top_model.compile(optimizer=SGD(lr=0.0001, momentum=0.9),
+        top_model.compile(optimizer=SGD(lr=0.0001, momentum=0.6),
                           loss='sparse_categorical_crossentropy',
                           metrics=['accuracy'])
 
     callbacks = [EarlyStopping(monitor='val_acc', patience=12, verbose=1),
-                 ModelCheckpoint(filepath=model_dir + 'tempbm.h5', monitor='val_acc', save_best_only=True),
+                 ModelCheckpoint(filepath=os.path.join(model_dir,'tempbm.h5'), monitor='val_acc', save_best_only=True),
                  ReduceLROnPlateau(monitor='val_acc', factor=0.2, patience=5, min_lr=0.00001, verbose=1)]
 
     history = top_model.fit(train_data, train_labels,
@@ -201,7 +234,7 @@ def train_top_model(bottleneck_name, model_name, arch, img_height, img_width, ep
                             verbose=verb)
 
     # reload best model:
-    top_model = load_model(model_dir + 'tempbm.h5')
+    top_model = load_model(os.path.join(model_dir, 'tempbm.h5'))
     score = top_model.evaluate(validation_data, validation_labels, verbose=0)
     print('{:22} {:.2f}'.format('Validation loss:', score[0]))
     print('{:22} {:.2f}'.format('Validation accuracy:', score[1]))
@@ -218,15 +251,16 @@ def train_top_model(bottleneck_name, model_name, arch, img_height, img_width, ep
                       loss='sparse_categorical_crossentropy',
                       metrics=['accuracy'])
     if opt == 'SGD':
-        model.compile(optimizer=SGD(lr=0.0001, momentum=0.9),
+        model.compile(optimizer=SGD(lr=0.0001, momentum=0.6),
                       loss='sparse_categorical_crossentropy',
                       metrics=['accuracy'])
 
-    model.save(model_dir + model_name + '.hdf5')
+    model.save(os.path.join(model_dir, f'{model_name}.hdf5'))
     # also save the dictionary label associated with this file for later testing
-    shutil.copy2(bottleneck_dir + bottleneck_name + '_dict_l', model_dir + model_name + '_dict_l')
+    shutil.copy2(os.path.join(bottleneck_dir, f'{bottleneck_name}_dict_l'), 
+                 os.path.join(model_dir, f'{model_name}_dict_l'))
     # delete temporary model file:
-    os.remove(model_dir + 'tempbm.h5')
+    os.remove(os.path.join(model_dir, 'tempbm.h5'))
 
     print('New classification layer training complete.')
 
@@ -251,8 +285,8 @@ def train_top_model(bottleneck_name, model_name, arch, img_height, img_width, ep
     fig.set_size_inches(w=5, h=7)
 
     # plt.show(fig)
-    plt.savefig(model_dir + model_name + '.png')
-
+    plt.savefig(os.path.join(model_dir,f'{model_name}.pdf'))
+    plt.close('all')
 
 def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epochs, batch_size):
     """
@@ -266,21 +300,22 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
       Returns:
         No returns. Trains and saves the model. Opens matplotlib with training history
       """
-    datagen = ImageDataGenerator(rescale=1. / 255)
+    #datagen = ImageDataGenerator(preprocessing_function=model_preprocess(model_name))
+    datagen = ImageDataGenerator(rescale=1./255)
 
     # load the model:
-    model = load_model(model_dir + model_name + '.hdf5')
+    model = load_model(os.path.join(model_dir, f'{model_name}.hdf5'))
 
     # compile the model with a SGD/momentum optimizer
     # and a very slow learning rate.
-    model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
+    model.compile(optimizer=SGD(lr=1e-4, momentum=0.3),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
     tensorboard = TensorBoard(
         log_dir="logs/{}-{}".format(model_name, datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")))
     callbacks = [EarlyStopping(monitor='val_loss', patience=20, verbose=1),
-                 ModelCheckpoint(filepath=model_dir + 'tempbm.h5', monitor='val_acc', save_best_only=True),
+                 ModelCheckpoint(filepath=os.path.join(model_dir, 'tempbm.h5'), monitor='val_acc', save_best_only=True),
                  ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, min_lr=1e-6, verbose=1),
                  tensorboard]
 
@@ -313,14 +348,14 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
                                   verbose=verb)
 
     # reload best model:
-    top_model = load_model(model_dir + 'tempbm.h5')
+    top_model = load_model(os.path.join(model_dir, 'tempbm.h5'))
     score = top_model.evaluate_generator(generator=generator_val, steps=generator_val.n, verbose=0)
     print('{:22} {:.2f}'.format('Validation loss:', score[0]))
     print('{:22} {:.2f}'.format('Validation accuracy:', score[1]))
     print('')
 
     # sometimes fine tune might not improve validation accuracy, verify:
-    initial_model = load_model(model_dir + model_name + '.hdf5')
+    initial_model = load_model(os.path.join(model_dir, f'{model_name}.hdf5'))
     initial_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
                           loss='categorical_crossentropy',
                           metrics=['accuracy'])
@@ -335,11 +370,12 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
         # http://blog.datumbox.com/the-batch-normalization-layer-of-keras-is-broken/
         # https://www.youtube.com/watch?v=nUUqwaxLnWs
 
-    model.save(model_dir + model_name + 'fine_tuned.hdf5')
+    model.save(os.path.join(model_dir, f'{model_name}_fine_tuned.hdf5'))
     # also save the dictionary label associated with this model for later testing
-    shutil.copy2(model_dir + os.sep + model_name + '_dict_l', model_dir + model_name + 'fine_tuned_dict_l')
+    shutil.copy2(os.path.join(model_dir, f'{model_name}_dict_l'), 
+                 os.path.join(model_dir, f'{model_name}_fine_tuned_dict_l'))
     # delete temporary model file:
-    os.remove(model_dir + 'tempbm.h5')
+    os.remove(os.path.join(model_dir, 'tempbm.h5'))
 
     # plotting the metrics
     fig, ax = plt.subplots(nrows=2, ncols=1, constrained_layout=True)
@@ -361,9 +397,11 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
     # set up figure
     fig.set_size_inches(w=5, h=7)
     # plt.show(fig)
-    plt.savefig(model_dir + model_name + 'fine_tuned.png')
+    plt.savefig(os.path.join(model_dir, f'{model_name}_fine_tuned.pdf'))
+    plt.close('all')
 
     print('Fine tune complete.')
+
 
 if __name__ == '__main__':
     print("Starting...")
@@ -393,12 +431,14 @@ if __name__ == '__main__':
                    'InceptionV3', 'ResNet50']
 
     # number of epochs for training:
-    epochs = 5
+    epochs = 64
 
     # optimizer
     opt = 'SGD'
 
     for m in models_list:
+        
+        start_time = timer()
         print(m)
 
         # model and bottleneck names:
@@ -409,48 +449,63 @@ if __name__ == '__main__':
         width = options_dict[m][1]
         # calling the functions:
         # save the bottlenecks
-        #save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
+        save_bottleneck_features(m, train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
         # then train the top model
-        #train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
+        train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
         # fine tune the model:
-        #fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs, batch_size=4)
-
-    # after the models are trained, evaluate the metrics:
-    datagen = ImageDataGenerator(rescale=1. / 255)
+        if m == 'InceptionV3' or m == 'ResNet50':
+            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
+                                  batch_size=8)  # 8 for inception/resnet (personal memory limitations)
+        else:
+            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
+                                  batch_size=16)
+        end_time = timer()
+        print(f'{m} trained in {(end_time-start_time)/60.0:.2f} minutes')
+        K.clear_session()
 
     print('\n\n')
     for m in models_list:
+        # after the models are trained, evaluate the metrics:
+        #datagen = ImageDataGenerator(preprocessing_function=model_preprocess(m))
+        datagen = ImageDataGenerator(rescale=1./255)
+
         print('Evaluating model {}'.format(m))
         # image height and width ("picture size for the model"):
         height = options_dict[m][0]
         width = options_dict[m][1]
-
-        generator_test = datagen.flow_from_directory(
-            test_data_dir,
-            target_size=(width, height),
-            batch_size=1,
-            class_mode='categorical',
-            shuffle=False)
-
-        # load the model
-        this_model = load_model(model_dir + m + '.hdf5')
-        this_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
-                              loss='categorical_crossentropy',
-                              metrics=['accuracy'])
-
-        print('----Classification only')
-        score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
-        print('----{:22} {:.2f}'.format('Validation loss:', score[0]))
-        print('----{:22} {:.2f}'.format('Validation accuracy:', score[1]))
-        print('')
-
-        # load the fine tuned model
-        this_model = load_model(model_dir + m + 'fine_tuned.hdf5')
-
-        print('----Fine tune')
-        score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
-        print('----{:22} {:.2f}'.format('Validation loss:', score[0]))
-        print('----{:22} {:.2f}'.format('Validation accuracy:', score[1]))
-        print('')
+        
+        with open('accuracy.csv', 'a') as outfile:
+            print(f'{m},', end =" ", file=outfile)
+            for dset, ddir in zip(['training', 'validation', 'test'],[train_data_dir, validation_data_dir, test_data_dir]):
+                generator_test = datagen.flow_from_directory(
+                    ddir,
+                    target_size=(width, height),
+                    batch_size=1,
+                    class_mode='categorical',
+                    shuffle=False)
+        
+                # load the model
+#                this_model = load_model(os.path.join(model_dir, f'{m}.hdf5'))
+#                this_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
+#                                   loss='categorical_crossentropy',
+#                                   metrics=['accuracy'])
+#                print(f'Model {m}', file=outfile)        
+#                print('----Classification only', file=outfile)
+#                score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
+#                print(f'----{dset:22} loss     {score[0]:.2f}', file=outfile)
+#                print(f'----{dset:22} accuracy {score[1]:.2f}', file=outfile)
+#                print('')
+        
+                # load the fine tuned model
+                this_model = load_model(os.path.join(model_dir, f'{m}_fine_tuned.hdf5'))
+        
+#                print('----Fine tune', file=outfile)
+                score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
+#                print(f'----{dset:22} loss     {score[0]:.2f}', file=outfile)
+#                print(f'----{dset:22} accuracy {score[1]:.2f}', file=outfile)
+#                print('\n\n')
+                print(f'{score[1]},', end =" ", file=outfile)
+                K.clear_session()
+            print('', file=outfile)
 
     print('Complete')
