@@ -27,7 +27,7 @@ from matplotlib import style
 matplotlib.use('TkAgg')
 style.use("seaborn")
 
-verb = 0  # verbose when training
+verb = 1  # verbose when training
 
 # folders management:
 bottleneck_dir = os.getcwd() + os.sep + 'runs' + os.sep + 'bnecks' + os.sep
@@ -335,9 +335,9 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
         # http://blog.datumbox.com/the-batch-normalization-layer-of-keras-is-broken/
         # https://www.youtube.com/watch?v=nUUqwaxLnWs
 
-    model.save(model_dir + model_name + '_fine_tuned.hdf5')
+    model.save(model_dir + model_name + 'fine_tuned.hdf5')
     # also save the dictionary label associated with this model for later testing
-    shutil.copy2(model_dir + os.sep + model_name + '_dict_l', model_dir + model_name + '_fine_tuned_dict_l')
+    shutil.copy2(model_dir + os.sep + model_name + '_dict_l', model_dir + model_name + 'fine_tuned_dict_l')
     # delete temporary model file:
     os.remove(model_dir + 'tempbm.h5')
 
@@ -361,10 +361,9 @@ def fine_tune_second_step(train_data_dir, validation_data_dir, model_name, epoch
     # set up figure
     fig.set_size_inches(w=5, h=7)
     # plt.show(fig)
-    plt.savefig(model_dir + model_name + '_fine_tuned.png')
+    plt.savefig(model_dir + model_name + 'fine_tuned.png')
 
     print('Fine tune complete.')
-
 
 if __name__ == '__main__':
     print("Starting...")
@@ -394,7 +393,7 @@ if __name__ == '__main__':
                    'InceptionV3', 'ResNet50']
 
     # number of epochs for training:
-    epochs = 50
+    epochs = 5
 
     # optimizer
     opt = 'SGD'
@@ -410,16 +409,11 @@ if __name__ == '__main__':
         width = options_dict[m][1]
         # calling the functions:
         # save the bottlenecks
-        save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
+        #save_bottleneck_features(train_data_dir, validation_data_dir, bottleneck_name, height, width, m)
         # then train the top model
-        train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
+        #train_top_model(bottleneck_name, m, m, height, width, epochs, opt)
         # fine tune the model:
-        if m == 'InceptionV3' or m == 'ResNet50':
-            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
-                                  batch_size=8)  # 8 for inception/resnet (personal memory limitations)
-        else:
-            fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs,
-                                  batch_size=16)
+        #fine_tune_second_step(train_data_dir, validation_data_dir, m, epochs, batch_size=4)
 
     # after the models are trained, evaluate the metrics:
     datagen = ImageDataGenerator(rescale=1. / 255)
@@ -441,8 +435,8 @@ if __name__ == '__main__':
         # load the model
         this_model = load_model(model_dir + m + '.hdf5')
         this_model.compile(optimizer=SGD(lr=1e-4, momentum=0.5),
-                           loss='categorical_crossentropy',
-                           metrics=['accuracy'])
+                              loss='categorical_crossentropy',
+                              metrics=['accuracy'])
 
         print('----Classification only')
         score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
@@ -451,7 +445,7 @@ if __name__ == '__main__':
         print('')
 
         # load the fine tuned model
-        this_model = load_model(model_dir + m + '_fine_tuned.hdf5')
+        this_model = load_model(model_dir + m + 'fine_tuned.hdf5')
 
         print('----Fine tune')
         score = this_model.evaluate_generator(generator=generator_test, steps=generator_test.n, verbose=0)
