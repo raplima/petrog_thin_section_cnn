@@ -7,11 +7,9 @@ import pickle
 import shutil
 
 import pandas as pd
-import seaborn as sn
 from PIL import Image
-from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import cohen_kappa_score
 
 import cnn_evaluate  # for label_folder
 import data_manipulation as dm  # for color balance, multicrop
@@ -24,20 +22,27 @@ if __name__ == '__main__':
 
     # for model selection parameters
     options_dict = {
-        'ResNet50_fine_tuned': (224, 224, 3)
+        'ResNet50_fine_tuned': (224, 224, 3),
+        'VGG19_fine_tuned': (224, 224, 3),
+        'InceptionV3_fine_tuned': (299, 299, 3),
+        'MobileNetV2_fine_tuned': (224, 224, 3),
     }
-    m = 'ResNet50_fine_tuned'
+    models = ['ResNet50_fine_tuned', 
+              'VGG19_fine_tuned',
+              'InceptionV3_fine_tuned',
+              'MobileNetV2_fine_tuned'
+              ]
 
     # base folder:
-    bs = '../Public'
+    bs = '../Data/Public'
     # test data folder
-    test_data_dir_in = '../Public/Test_data'
+    test_data_dir_in = '../Data/Public/Test_data'
     # save files with same dimensions as training model data into
-    test_data_dir_size = '../Public/Test_data_sz/size'
+    test_data_dir_size = '../Data/Public/Test_data_sz/size'
     # then multicrop images and save into
-    test_mc = '../Public/Test_mc'
+    test_mc = '../Data/Public/Test_mc'
     # then color balance and save into
-    test_mc_wb = '../Public/Test_mc_wb'
+    test_mc_wb = '../Data/Public/Test_mc_wb'
 
     # make sure all these folders exist:
     for path_out in [test_data_dir_size, test_mc, test_mc_wb]:
@@ -64,113 +69,89 @@ if __name__ == '__main__':
 
     # this data can be used for testing with the CNN model.
     ###################################################################
+    # load the dataframe containing filename labels:
+    df_labels = pd.read_csv(os.path.join(bs, 'public_filename_label.csv'))
+    df_labels = df_labels.set_index('ts_name')
+    
+    class_names = ['Argillaceous_siltstone',
+                  'Bioturbated_siltstone',
+                  'Massive_calcareous_siltstone',
+                  'Massive_calcite-cemented_siltstone',
+                  'Porous_calcareous_siltstone']
+    
+    # create file to save accuracy and kappa not considering unknown values
+    with open(os.path.join(bs, 'accuracy_kappa.csv'), 'w') as outfile:
+        print('model, accuracy, kappa', file=outfile)
+    
     # model path:
-    m_path = '{}{}{}'.format(model_dir, m, '.hdf5')
-    m_dict = '{}{}{}'.format(model_dir, m, '_dict_l')
-    # open the label dictionary
-    with open(m_dict, 'rb') as f:
-        m_labels = pickle.load(f)
+    for m in models:
+        m_path = os.path.join(model_dir, f'{m}.hdf5')
+        m_dict = os.path.join(model_dir, f'{m}_dict_l')
+        # open the label dictionary
+        with open(m_dict, 'rb') as f:
+            m_labels = pickle.load(f)
 
-    # image height and width ("picture size for the model"):
-    height = options_dict[m][0]
-    width = options_dict[m][1]
+        # image height and width ("picture size for the model"):
+        height = options_dict[m][0]
+        width = options_dict[m][1]
 
-    # classify folder
-    res = cnn_evaluate.label_folder(test_mc_wb, m_path)
+        # classify folder
+        res = cnn_evaluate.label_folder(test_mc_wb, m_path)
 
-    # save results as dataframe
-    df = pd.DataFrame(res[0], columns=m_labels)
-    df['file'] = res[1]
+        # save results as dataframe
+        df = pd.DataFrame(res[0], columns=m_labels)
+        df['file'] = res[1]
 
-    # save the filename
-    new_col = df['file'].str.split("\\", n=1, expand=True)
-    df['filename'] = new_col[1]
+        # save the filename
+        new_col = df['file'].str.split("\\", n=1, expand=True)
+        df['filename'] = new_col[1]
 
-    # save the predicted label (the argmax)
-    df['PredLabel'] = df[['Argillaceous_siltstone',
-                          'Bioturbated_siltstone',
-                          'Massive_calcareous_siltstone',
-                          'Massive_calcite-cemented_siltstone',
-                          'Porous_calcareous_siltstone']].idxmax(axis=1)
+        # save the predicted label (the argmax)
+        df['PredLabel'] = df[class_names].idxmax(axis=1)
 
-    # save the highest probability assigned:
-    df['MaxPred'] = df[['Argillaceous_siltstone',
-                        'Bioturbated_siltstone',
-                        'Massive_calcareous_siltstone',
-                        'Massive_calcite-cemented_siltstone',
-                        'Porous_calcareous_siltstone']].max(axis=1)
+        # save the highest probability assigned:
+        df['MaxPred'] = df[class_names].max(axis=1)
 
-    # save file
-    df.to_csv('{}/{}{}'.format(bs, m, '.csv'))
+        # combine the results assigned to one thin section
+        df['ts_name'] = df['filename'].str.rsplit('_', n=1, expand=True)[0]
+        df_comb = df.groupby(by=['ts_name'])['PredLabel'].value_counts().unstack().fillna(0)
 
-    ##########
-    # combine the results assigned to one thin section
-    df['ts_name'] = [x[:-7] for x in df['filename']]
-    df_comb = df.groupby(by=['ts_name'])['PredLabel'].value_counts().unstack().fillna(0)
+        # save the predicted label (the row argmax)
+        df_comb['PredLabel_1'] = df_comb[class_names].idxmax(axis=1)
 
-    # save and load
-    df_comb.to_csv('{}/{}{}'.format(bs, m, '_temp.csv'))
-    df_comb = pd.read_csv('{}/{}{}'.format(bs, m, '_temp.csv'))
-    os.remove('{}/{}{}'.format(bs, m, '_temp.csv'))
+        # select only the predictions
+        df_comb_pred = df_comb[class_names].copy()
+        # sort the results:
+        pred_sort = df_comb_pred.values.argsort(1)
+        # save the label with the "first" argmax
+        df_comb['PredLabel_1'] = df_comb_pred.columns[pred_sort[:, -1]]
+        # save the label with the "second" argmax
+        df_comb['PredLabel_2'] = df_comb_pred.columns[pred_sort[:, -2]]
 
-    # save the predicted label (the row argmax)
-    df_comb['PredLabel_1'] = df_comb.iloc[0:, 2:].idxmax(axis=1)
+        # the predicted label is the PredLabel_1...
+        df_comb['PredLabel'] = df_comb['PredLabel_1']
+        # ... as long as there is no tie between first and second "argmax"
 
-    # select only the predictions
-    df_comb_pred = df_comb.iloc[0:, 1:6]
-    # sort the results:
-    pred_sort = df_comb_pred.values.argsort(1)
-    # save the label with the "first" argmax
-    df_comb['PredLabel_1'] = df_comb_pred.columns[pred_sort[:, -1]]
-    # save the label with the "second" argmax
-    df_comb['PredLabel_2'] = df_comb_pred.columns[pred_sort[:, -2]]
+        # maybe inefficient, but just check whether argmax1 is actually bigger than argmax2:
+        for i in range(0, len(df_comb)):
+            if df_comb_pred.iloc[i][pred_sort[i, -1]] == df_comb_pred.iloc[i][pred_sort[i, -2]]:
+                print('tie {}'.format(i))
+                df_comb['PredLabel'][i] = 'Tie'
 
-    # the predicted label is the PredLabel_1...
-    df_comb['PredLabel'] = df_comb['PredLabel_1']
-    # ... as long as there is no tie between first and second "argmax"
-
-    # maybe inefficient, but just check whether argmax1 is actually bigger than argmax2:
-    for i in range(0, len(df_comb)):
-        if df_comb_pred.iloc[i][pred_sort[i, -1]] == df_comb_pred.iloc[i][pred_sort[i, -2]]:
-            print('tie {}'.format(i))
-            df_comb['PredLabel'][i] = 'Tie'
-
-    # save file
-    df_comb.to_csv('{}/{}{}'.format(bs, m, '_thin_section_combined.csv'))
-
-    ####################################
-    ####################################
-
-    # later on, geologist provided the labels for the public data
-    # generate a confusion matrix:
-    df_csv = 'ResNet50_fine_tuned_thin_section_combined_pred_true'
-    print('Checking {}'.format(df_csv))
-    df = pd.read_csv('{}/{}{}'.format(bs, df_csv, '.csv'))
-
-    y_true = df['TrueLabel']
-    y_pred = df['PredLabel']
-    # Compute confusion matrix
-    cnf_matrix = confusion_matrix(y_true, y_pred)
-
-    # set the labels
-    yt_l = ['Bioturbated siltstone', 'Massive calcareous siltstone', 'Massive calcite-cemented siltstone',
-            'Porous calcareous siltstone', 'Tied', 'Unknown']
-    df_cm = pd.DataFrame(cnf_matrix, yt_l, yt_l)
-
-    plt.figure(figsize=(15, 15))
-    sn.set(font_scale=1.8)
-    sn.heatmap(df_cm, annot=True, fmt='d', annot_kws={"size": 14}, cmap="Greens")
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.savefig('{}/{}{}'.format(bs, df_csv, '_confusion_matrix.tif'),
-                dpi=600)
-    plt.close()
-
-    # compute the accuracy ignoring ties and unknowns
-    df = df[df['TrueLabel'] != 'Unknown']
-    df = df[df['PredLabel'] != 'Tie']
-
-    y_true = df['TrueLabel']
-    y_pred = df['PredLabel']
-
-    print(accuracy_score(y_true, y_pred))
+        ####################################
+        # combine predictions with labels provided 
+        df_comb = df_comb.merge(df_labels, left_index=True, right_index=True)
+        
+        # save file:
+        df_comb.to_csv(os.path.join(bs, f'{m}_combined.csv'), index=False)
+    
+        # compute the accuracy ignoring unknowns
+        df_comb = df_comb[df_comb['TrueLabel'] != 'Unknown']
+    
+        y_true = df_comb['TrueLabel']
+        y_pred = df_comb['PredLabel']
+        
+        with open(os.path.join(bs, 'accuracy_kappa.csv'), 'a') as outfile:
+            acc = accuracy_score(y_true, y_pred)
+            kappa = cohen_kappa_score(y_true, y_pred)
+            print(f'{m}, {acc}, {kappa}', file=outfile)
