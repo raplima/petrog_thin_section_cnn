@@ -15,7 +15,6 @@ from matplotlib import pyplot as plt
 from matplotlib import style
 from sklearn.metrics import accuracy_score
 
-from cnn_processing import model_preprocess
 
 def label_folder(path_folder, path_model):
     """Labels (classifies) a folder containing subfloders based on a retrained CNN model.
@@ -99,13 +98,6 @@ if __name__ == '__main__':
 
     # we will change the threshold and save the accuracy results
     df_acc = pd.DataFrame(columns=['model',
-                                   'acc_30', 'unks_30', 'acc_35', 'unks_35',
-                                   'acc_40', 'unks_40', 'acc_45', 'unks_45',
-                                   'acc_50', 'unks_50', 'acc_55', 'unks_55',
-                                   'acc_60', 'unks_60', 'acc_65', 'unks_65',
-                                   'acc_70', 'unks_70', 'acc_75', 'unks_75',
-                                   'acc_80', 'unks_80', 'acc_85', 'unks_85',
-                                   'acc_90', 'unks_90', 'acc_95', 'unks_95',
                                    'acc_argmax', 'n_tot',
                                    'acc_combined'])
 
@@ -138,14 +130,14 @@ if __name__ == '__main__':
         df['filename'] = new_col[1]
 
         # save the predicted label (the argmax)
-        df['PredLabel'] = df[['Argilaceous_siltstone',
+        df['PredLabel'] = df[['Argillaceous_siltstone',
                               'Bioturbated_siltstone',
                               'Massive_calcareous_siltstone',
                               'Massive_calcite-cemented_siltstone',
                               'Porous_calcareous_siltstone']].idxmax(axis=1)
 
         # save the highest probability assigned:
-        df['MaxPred'] = df[['Argilaceous_siltstone',
+        df['MaxPred'] = df[['Argillaceous_siltstone',
                             'Bioturbated_siltstone',
                             'Massive_calcareous_siltstone',
                             'Massive_calcite-cemented_siltstone',
@@ -183,17 +175,6 @@ if __name__ == '__main__':
 
         # to populate the accuracy df later, save the name of the model
         acc_list = [m]
-        # calculate the accuracy changing the threshold of acceptance:
-        for i in range(30, 100, 5):
-            # save a new df keeping only rows where the prediction is higher than the set threshold
-            df_thresh = df[df.MaxPred >= i * 0.01]
-            # print(len(df_thresh.index))
-            # compute the accuracy with threshold data:
-            y_pred = df_thresh['PredLabel']
-            y_true = df_thresh['TrueLabel']
-            acc = accuracy_score(y_true, y_pred)
-            acc_list.append(acc)
-            acc_list.append(len(df.index) - len(df_thresh.index))
 
         # append the argmax value computed previously (with complete data)
         acc_list.append(acc_argmax)
@@ -205,13 +186,6 @@ if __name__ == '__main__':
         # add new entry to df
         new_acc = pd.DataFrame([acc_list],
                                columns=['model',
-                                        'acc_30', 'unks_30', 'acc_35', 'unks_35',
-                                        'acc_40', 'unks_40', 'acc_45', 'unks_45',
-                                        'acc_50', 'unks_50', 'acc_55', 'unks_55',
-                                        'acc_60', 'unks_60', 'acc_65', 'unks_65',
-                                        'acc_70', 'unks_70', 'acc_75', 'unks_75',
-                                        'acc_80', 'unks_80', 'acc_85', 'unks_85',
-                                        'acc_90', 'unks_90', 'acc_95', 'unks_95',
                                         'acc_argmax', 'n_tot',
                                         'acc_combined'])
         # print(acc_list)
