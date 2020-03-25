@@ -1,8 +1,8 @@
 Python scripts used to perform petrographyc thin section analysis using convolutional neural networks published as:
 # Petrographic microfacies classification with deep convolutional neural networks
-Journal title: Computers and Geosciences
-Authors: Rafael Pires de Lima, David Duarte, Charles Nicholson, Roger Slatt, Kurt J. Marfurt
-Corresponding author: Rafael Pires de Lima
+Journal title: Computers and Geosciences  
+Authors: Rafael Pires de Lima, David Duarte, Charles Nicholson, Roger Slatt, Kurt J. Marfurt  
+Corresponding author: Rafael Pires de Lima  
 
 ## Scripts
 - simple_cb.py: performs color balancing. **Please note the original source and references for the script and algorithm. **
