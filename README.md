@@ -5,7 +5,7 @@ Authors: Rafael Pires de Lima, David Duarte, Charles Nicholson, Roger Slatt, Kur
 Corresponding author: Rafael Pires de Lima
 
 ## Scripts
-- simple_cb.py: performs color balancing. ** Please note the original source and references for the script and algorithm. **
+- simple_cb.py: performs color balancing. **Please note the original source and references for the script and algorithm. **
 
 - cnn_figs.py:	creates (completely or partially) figures used for the paper
 - cnn_processing.py: functions to fine tune CNNs
@@ -17,4 +17,4 @@ Corresponding author: Rafael Pires de Lima
 
 For an easier to use tool for initial transfer learning evaluation, an user iterface is provided in https://github.com/raplima/transfer_learning_wgui. 
 
-__Software here is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.__
+_Software here is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied._
