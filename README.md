@@ -26,15 +26,14 @@ Corresponding author: Rafael Pires de Lima
 Data can be downloaded [here](https://data.mendeley.com/datasets/vsnhrtdx22/draft?a=6a5b599e-781f-4dc7-aba0-72a03ae540ae). 
 
 ## Scripts
-- simple_cb.py: performs color balancing. **Please note the original source and references for the script and algorithm. **
-
-- cnn_figs.py:	creates (completely or partially) figures used for the paper
-- cnn_processing.py: functions to fine tune CNNs
-- data_manipulation.py:	data preparation
-- cnn_evaluate.py: used to evaluate of CNN models generated with cnn_processing.py
-- test_pub_data.py:	functions for the evaluation of public data
-- metrics_and_confusion_matrix_plot.R:	R files for metrics and confusion plots
-- metrics_and_confusion_matrix_plot_for_public.R:	R files for metrics and confusion plots
+- [`simple_cb.py`](./simple_cb.py): performs color balancing. **Please note the original source and references for the script and algorithm. **
+- [`cnn_figs.py`](./cnn_figs.py):	creates (completely or partially) figures used for the paper
+- [`cnn_processing.py`](./cnn_processing.py): functions to fine tune CNNs
+- [`data_manipulation.py`](./data_manipulation.py):	data preparation
+- [`cnn_evaluate.py`](./cnn_evaluate.py): used to evaluate of CNN models generated with cnn_processing.py
+- [`test_pub_data.py`](./test_pub_data.py):	functions for the evaluation of public data
+- [`metrics_and_confusion_matrix_plot.R`](./metrics_and_confusion_matrix_plot.R):	R files for metrics and confusion plots
+- [`metrics_and_confusion_matrix_plot_for_public.R`](./metrics_and_confusion_matrix_plot_for_public.R):	R files for metrics and confusion plots
 
 For an easier to use tool for initial transfer learning evaluation, an user iterface is provided [here](https://github.com/raplima/transfer_learning_wgui). 
 
