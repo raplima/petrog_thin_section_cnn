@@ -5,8 +5,7 @@ Authors: Rafael Pires de Lima, David Duarte, Charles Nicholson, Roger Slatt, Kur
 Corresponding author: Rafael Pires de Lima  
 
 ```bibtex
-@article
-{ 
+@article{
   PIRESDELIMA2020104481,
   title = "Petrographic microfacies classification with deep convolutional neural networks",
   journal = "Computers & Geosciences",
